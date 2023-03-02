@@ -3,43 +3,57 @@ use Ada.Text_IO, Ada.Integer_Text_IO;
 
 procedure Main is
 
-   can_stop : boolean := false;
-   pragma Atomic(can_stop);
+   IsWorking : boolean := true;
+   pragma Atomic(IsWorking);
+   ThreadsCount : Integer := 8;
 
-   task type break_thread;
+
+   task type break_thread is
+      entry Start;
+   end break_thread;
    task body break_thread is
    begin
-      delay 30.0;
-      can_stop := true;
+      accept Start do
+         delay 10.0;
+         IsWorking := False;
+      end Start;
    end break_thread;
 
 
    task type main_thread is
-      entry Finish(Sum : Out Long_Long_Integer);
+      entry Start(ThreadIndex : Integer);
+      entry Finish(Sum : Out Integer);
    end main_thread;
    task body main_thread is
-      Sum : Long_Long_Integer := 0;
-      i : Integer := 1;
+      Sum : Integer := 0;
    begin
-      for i in 1..1000 loop
-         Sum := Sum + 1;
-      end loop;
+      accept Start (ThreadIndex : in Integer) do
+         Sum := ThreadIndex;
+         loop
+            Sum := Sum + ThreadsCount;
+            exit when not IsWorking;
+         end loop;
+      end Start;
 
-      accept Finish (Sum : out Long_Long_Integer) do
+      accept Finish (Sum : out Integer) do
          Sum := main_thread.Sum;
       end Finish;
    end main_thread;
 
 
-   Threads_Count : Integer;
-
 begin
-   Threads_Count := 3;
    declare
-      A : Array(1..Threads_Count) of main_thread;
-      S : Array(1..Threads_Count) of Long_Long_Integer;
+      A : Array(1..ThreadsCount) of main_thread;
+      S : Array(1..ThreadsCount) of Integer;
+      break : break_thread;
       i : Integer := 1;
    begin
+      for i in A'Range loop
+         A(i).Start(i);
+      end loop;
+
+      break.Start;
+
       for i in A'range loop
          A(i).Finish(S(i));
          Put_Line(S(i)'img);
