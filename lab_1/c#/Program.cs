@@ -16,7 +16,7 @@ namespace lab_1
 
             for (int i = 0; i < threadsCount; i++)
             {
-                threads.Add(new ComputeThread(i, threadsCount, breaker));
+                threads.Add(new ComputeThread(step: threadsCount, breaker));
                 threads[i].Thread.Start();
             }
             breaker.Thread.Start();
@@ -24,9 +24,8 @@ namespace lab_1
             for (int i = 0; i < threadsCount; i++)
             {
                 threads[i].Thread.Join();
-                Console.WriteLine($"Sum of thread #{i} is {threads[i].Sum}");
+                Console.WriteLine($"Sum of thread #{i} is {threads[i].Sum}, elements count is {threads[i].ElementsCount}");
             }
-            Console.WriteLine($"Total sum is {threads.Sum(x => x.Sum)}");
             Console.ReadKey();
         }
     }
@@ -35,23 +34,23 @@ namespace lab_1
     {
         public Thread Thread { get; }
         public long Sum => sum;
+        public long ElementsCount => elementsCount;
 
-        private int threadsCount;
-        private int threadNumber;
-        private BreakerThread breaker;
-        private long sum;
+        private readonly int step;
+        private readonly BreakerThread breaker;
+        private long sum = 0;
+        private long elementsCount = 0;
 
-        public ComputeThread(int threadNumber, int threadsCount, BreakerThread breaker)
+        public ComputeThread(int step, BreakerThread breaker)
         {
-            this.threadNumber = threadNumber;
-            this.threadsCount = threadsCount;
+            this.step = step;
             this.breaker = breaker;
             Thread = new Thread(Compute);
         }
 
         private void Compute()
         {
-            for (sum = threadNumber; breaker.IsWorking; sum += threadsCount);
+            for (sum = 0; breaker.IsWorking; sum += step, elementsCount++);
         }
     }
 
@@ -59,7 +58,7 @@ namespace lab_1
     {
         public Thread Thread { get; }
 
-        private int breakInSec;
+        private readonly int breakInSec;
         public bool IsWorking { get; private set; } = true;
 
         public BreakerThread(int breakInSec)

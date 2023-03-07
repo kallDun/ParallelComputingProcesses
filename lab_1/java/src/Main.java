@@ -13,12 +13,11 @@ public class Main {
             return;
         }
 
-
         ComputeThread[] computeThreads = new ComputeThread[threadsCount];
         BreakerThread breakerThread = new BreakerThread(15);
 
         for (int i = 0; i < threadsCount; i++) {
-            computeThreads[i] = new ComputeThread(threadsCount, i, breakerThread);
+            computeThreads[i] = new ComputeThread(threadsCount, breakerThread);
             computeThreads[i].start();
         }
         breakerThread.start();
@@ -26,44 +25,35 @@ public class Main {
         for (int i = 0; i < threadsCount; i++) {
             try {
                 computeThreads[i].join();
-                System.out.println("Thread " + i + " sum: " + computeThreads[i].getSum());
+                System.out.println("Thread " + i + " sum: " + computeThreads[i].getSum() + " elements: " + computeThreads[i].getElements());
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-
-        System.out.println("Total sum: " + getTotalSum(computeThreads));
-    }
-    private static long getTotalSum(ComputeThread[] computeThreads) {
-        long sum = 0;
-        for (ComputeThread computeThread : computeThreads) {
-            sum += computeThread.getSum();
-        }
-        return sum;
     }
 }
 
 
 class ComputeThread extends Thread {
     private long sum = 0;
-    private final int threadsCount;
-    private final int threadNumber;
+    private long elements = 0;
+    private final int step;
     private final BreakerThread breakerThread;
 
-    public ComputeThread(int threadsCount, int threadNumber, BreakerThread breakerThread) {
-        this.threadsCount = threadsCount;
-        this.threadNumber = threadNumber;
+    public ComputeThread(int step, BreakerThread breakerThread) {
+        this.step = step;
         this.breakerThread = breakerThread;
     }
 
     @Override
     public void run(){
-        for (sum = threadNumber; breakerThread.isWorking; sum += threadsCount);
+        for (sum = 0; breakerThread.isWorking; sum += step, elements++);
     }
 
     public long getSum() {
         return sum;
     }
+    public long getElements() { return elements; }
 }
 
 class BreakerThread extends Thread{

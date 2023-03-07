@@ -4,60 +4,77 @@ use Ada.Text_IO, Ada.Integer_Text_IO;
 procedure Main is
 
    IsWorking : boolean := true;
-   pragma Atomic(IsWorking);
-   ThreadsCount : Integer := 8;
+   pragma volatile(IsWorking);
+   ThreadsCount : Integer := 16;
 
 
-   task type break_thread is
-      entry Start;
-   end break_thread;
+   -- break thread
+   task break_thread;
    task body break_thread is
    begin
-      accept Start do
-         delay 10.0;
-         IsWorking := False;
-      end Start;
+      delay 10.0;
+      IsWorking := False;
    end break_thread;
 
 
+   -- main thread
    task type main_thread is
-      entry Start(ThreadIndex : Integer);
-      entry Finish(Sum : Out Integer);
+      entry Start(ThreadIndex : in Integer);
+      entry Finish(Sum : Out Integer; Elements : out Integer);
    end main_thread;
+
    task body main_thread is
       Sum : Integer := 0;
+      Elements : Integer := 0;
+      ThreadIndex : Integer;
    begin
       accept Start (ThreadIndex : in Integer) do
-         Sum := ThreadIndex;
-         loop
-            Sum := Sum + ThreadsCount;
-            exit when not IsWorking;
-         end loop;
+         main_thread.ThreadIndex := ThreadIndex;
       end Start;
 
-      accept Finish (Sum : out Integer) do
+      loop
+         Sum := Sum + ThreadsCount;
+         Elements := Elements + 1;
+         Put_Line("task  "&  ThreadIndex'img & " loop ");
+         exit when not IsWorking;
+      end loop;
+      accept Finish (Sum : out Integer; Elements : out Integer) do
          Sum := main_thread.Sum;
+         Elements := main_thread.Elements;
       end Finish;
    end main_thread;
 
 
+   -- variables
+   A : Array(1..ThreadsCount) of main_thread;
+   S : Array(1..ThreadsCount) of Integer;
+   E : Array(1..ThreadsCount) of Integer;
+   Item : String(1..100);
+   Last : Natural;
+
+
+-- main body
 begin
-   declare
-      A : Array(1..ThreadsCount) of main_thread;
-      S : Array(1..ThreadsCount) of Integer;
-      break : break_thread;
-      i : Integer := 1;
-   begin
-      for i in A'Range loop
-         A(i).Start(i);
-      end loop;
 
-      break.Start;
+   for i in A'Range loop
+      A(i).Start(i);
+   end loop;
 
-      for i in A'range loop
-         A(i).Finish(S(i));
-         Put_Line(S(i)'img);
-      end loop;
-   end;
+   for i in A'range loop
+      A(i).Finish(S(i), E(i));
+   end loop;
+
+   for i in S'range loop
+      Put("Sum of Thread");
+      Put(i'Img);
+      Put(" =");
+      Put(S(i)'img);
+      Put(", Elements =");
+      Put(E(i)'Img);
+      Put_Line("");
+   end loop;
+
+   Last := 100;
+   Get_Line(Item, Last);
 
 end Main;
