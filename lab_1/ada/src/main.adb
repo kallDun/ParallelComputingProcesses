@@ -4,12 +4,13 @@ use Ada.Text_IO, Ada.Integer_Text_IO;
 procedure Main is
 
    IsWorking : boolean := true;
-   pragma volatile(IsWorking);
+   pragma Volatile(IsWorking);
    ThreadsCount : Integer := 16;
+   someMagicNumber : Integer := 0;
 
 
    -- break thread
-   task break_thread;
+   task type break_thread;
    task body break_thread is
    begin
       delay 10.0;
@@ -19,23 +20,20 @@ procedure Main is
 
    -- main thread
    task type main_thread is
-      entry Start(ThreadIndex : in Integer);
+      entry Start;
       entry Finish(Sum : Out Integer; Elements : out Integer);
    end main_thread;
 
    task body main_thread is
       Sum : Integer := 0;
       Elements : Integer := 0;
-      ThreadIndex : Integer;
    begin
-      accept Start (ThreadIndex : in Integer) do
-         main_thread.ThreadIndex := ThreadIndex;
-      end Start;
+      accept Start;
 
       loop
          Sum := Sum + ThreadsCount;
          Elements := Elements + 1;
-         Put_Line("task  "&  ThreadIndex'img & " loop ");
+         someMagicNumber := someMagicNumber + 1;
          exit when not IsWorking;
       end loop;
       accept Finish (Sum : out Integer; Elements : out Integer) do
@@ -52,12 +50,15 @@ procedure Main is
    Item : String(1..100);
    Last : Natural;
 
+   break : break_thread;
+   pragma Volatile(break);
+
 
 -- main body
 begin
 
    for i in A'Range loop
-      A(i).Start(i);
+      A(i).Start;
    end loop;
 
    for i in A'range loop
