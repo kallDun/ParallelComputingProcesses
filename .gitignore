@@ -84,7 +84,7 @@ cmake-build-*/
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 
-.idea/*
-out/*
-.vs/lab_1
-java/untitled.iml
+.idea
+out
+.vs
+untitled.iml
