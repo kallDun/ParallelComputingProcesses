@@ -84,15 +84,7 @@ cmake-build-*/
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 
-lab_1/java/.idea/misc.xml
-lab_1/java/.idea/modules.xml
-lab_1/java/.idea/workspace.xml
-lab_1/java/out/production/untitled/BreakerThread.class
-lab_1/java/out/production/untitled/ComputeThread.class
-lab_1/java/out/production/untitled/Main.class
-lab_1/c#/.vs/lab_1/FileContentIndex/5deb98f2-8797-4c51-9589-e83a586c553b.vsidx
-lab_1/c#/.vs/lab_1/FileContentIndex/read.lock
-lab_1/java/untitled.iml
-lab_1/c#/.vs/lab_1/FileContentIndex/0ba8db4d-e309-4caf-837c-255d639ede61.vsidx
-lab_1/java/.idea/.name
-lab_1/java/.idea/vcs.xml
+.idea/*
+out/*
+.vs/lab_1
+java/untitled.iml
