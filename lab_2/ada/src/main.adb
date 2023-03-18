@@ -3,8 +3,8 @@ with Ada.Text_IO; use Ada.Text_IO;
 
 procedure Main is
 
-   dim : constant Integer := 10000;
-   thread_num : constant Integer := 8;
+   dim : constant Integer := 100000;
+   thread_num : constant Integer := 2;
    arr : array(1..dim) of Integer;
 
    function generate_random_number ( from: in Integer; to: in Integer) return Integer is
@@ -20,15 +20,22 @@ procedure Main is
    end;
 
    procedure GenerateArray is
-      --rndIndex : Integer;
-      --rndValue : Integer;
+      rndIndex : Integer;
+      rndValue : Integer;
    begin
-      --rndIndex := generate_random_number(0, dim);
-      --rndValue := generate_random_number(-1000000, 0);
-      arr(120) := -12354;
-      --for i in 1..dim loop
-      --   arr(i) := i;
-      --end loop;
+      for i in 1..dim loop
+         arr(i) := 0;
+      end loop;
+
+      rndIndex := generate_random_number(0, dim);
+      rndValue := generate_random_number(-1000000, 0);
+      arr(rndIndex) := rndValue;
+
+      Put_Line("");
+      Put("Random generated index is");
+      Put(rndIndex'img);
+      Put(", random generated value is ");
+      Put(rndValue'img);
    end GenerateArray;
 
 
@@ -38,7 +45,7 @@ procedure Main is
 
 
    protected ThreadManager is
-      procedure AddDoneTask(MinIndex : out Integer; MinValue : out Integer);
+      procedure AddDoneTask(MinIndex : in Integer; MinValue : in Integer; ThreadIndex : in Integer);
       entry GetMinIndexAndValue(MinIndex : out Integer; MinValue : out Integer);
    private
       min_Index : Integer;
@@ -48,8 +55,16 @@ procedure Main is
    end ThreadManager;
 
    protected body ThreadManager is
-      procedure AddDoneTask(MinIndex : out Integer; MinValue : out Integer) is
+      procedure AddDoneTask(MinIndex : in Integer; MinValue : in Integer; ThreadIndex : in Integer) is
       begin
+         Put_Line("");
+         Put("Min element in thread");
+         Put(ThreadIndex'img);
+         Put(" with index");
+         Put(MinIndex'img);
+         Put(" is ");
+         Put(MinValue'img);
+
          if (flag) then
             min_Value := MinValue;
             min_Index := MinIndex;
@@ -92,24 +107,34 @@ procedure Main is
             min_value := arr(i);
          end if;
       end loop;
-      ThreadManager.AddDoneTask(min_index, min_value);
+      ThreadManager.AddDoneTask(min_index, min_value, thread_index);
    end Thread;
 
 
-
    threads : array(1..thread_num) of Thread;
-   minIndex : Integer;
-   minValue : Integer;
+
+
+   procedure PrintResults is
+      minIndex : Integer;
+      minValue : Integer;
+   begin
+      ThreadManager.GetMinIndexAndValue(minIndex, minValue);
+
+      Put_Line("");
+      Put("Min index is");
+      Put(minIndex'img);
+      Put(", min value is ");
+      Put(minValue'img);
+   end PrintResults;
+
+
 begin
+   Put("Threads count is");
+   Put(thread_num'img);
+
    GenerateArray;
    for i in 1..thread_num loop
       threads(i).Init(i);
    end loop;
-   ThreadManager.GetMinIndexAndValue(minIndex, minValue);
-
-   Put_Line("Min index is ");
-   Put_Line(minIndex'img);
-   Put_Line("Min value is ");
-   Put_Line(minValue'img);
-
+   PrintResults;
 end Main;

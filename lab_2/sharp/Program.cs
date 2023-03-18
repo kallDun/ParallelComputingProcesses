@@ -10,18 +10,18 @@ public class Program
     public static int ThreadsFinishedCounter = 0;
 
 
-    private static readonly int threadsCount = 8;
+    private static readonly int threadsCount = 2;
     private static readonly int maxArraySize = 100000000;
 
     private static void Main(string[] args)
-    {        
+    {
+        Console.WriteLine($"Threads count is {threadsCount}");
         int[] array = new int[maxArraySize];
         RandomizeArray(ref array);
 
         ComputeThread[] computeThreads = new ComputeThread[threadsCount];
         Thread[] threads = new Thread[threadsCount];
 
-        // calculate time of execution
         Stopwatch timer = new Stopwatch();
         timer.Start();
 
@@ -106,6 +106,8 @@ public class ComputeThread
                 min = new KeyValuePair<int, int>(i, array[i]);
             }
         }
+
+        Console.WriteLine($"Min element in thread {threadIndex} with index {min.Key} is {min.Value}");
 
         lock (Program.MainLock)
         {

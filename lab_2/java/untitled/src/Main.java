@@ -7,18 +7,23 @@ public class Main {
     private final int threadsCount = 8;
     private final int maxArraySize = 100000000;
 
+    private int minIndex = -1;
+    private int minElement = Integer.MAX_VALUE;
+    private ComputeThread[] threads;
+
     public static void main(String[] args) {
         Main main = new Main();
         main.EntryPoint();
     }
 
     public void EntryPoint(){
+        System.out.println("Threads count: " + threadsCount);
         int[] array = new int[100000000];
         RandomizeArray(array);
 
         long startTime = System.nanoTime();
 
-        ComputeThread[] threads = new ComputeThread[threadsCount];
+        threads = new ComputeThread[threadsCount];
         for (int i = 0; i < threadsCount; i++) {
             threads[i] = new ComputeThread(array, i, threadsCount, this);
             threads[i].start();
@@ -27,7 +32,6 @@ public class Main {
 
         long endTime = System.nanoTime();
 
-        int minIndex = GetMinIndex(array, threads);
         System.out.println("Min index: " + minIndex + ", min element: " + array[minIndex]);
         System.out.println("Time: " + (endTime - startTime) + " nanoseconds");
     }
@@ -42,22 +46,20 @@ public class Main {
         }
     }
 
-    synchronized public void incrementThreadIndexDone(){
+    synchronized public void incrementThreadIndexDone(int threadIndex){
+        System.out.println("Thread " + threadIndex + " done with min index: " + threads[threadIndex].getMinIndex() + ", with value: " + threads[threadIndex].getMinElement());
+
+        if (minIndex == -1) {
+            minIndex = threads[threadIndex].getMinIndex();
+            minElement = threads[threadIndex].getMinElement();
+        }
+        else if (threads[threadIndex].getMinElement() < minElement) {
+            minIndex = threads[threadIndex].getMinIndex();
+            minElement = threads[threadIndex].getMinElement();
+        }
+
         threadIndexDone++;
         notify();
-    }
-
-
-    private int GetMinIndex(int[] array, ComputeThread[] threads) {
-        int minIndex = 0;
-        int minElement = array[0];
-        for (int i = 0; i < threadsCount; i++) {
-            if (threads[i].getMinElement() < minElement) {
-                minElement = threads[i].getMinElement();
-                minIndex = threads[i].getMinIndex();
-            }
-        }
-        return minIndex;
     }
 
     private void RandomizeArray(int[] array) {
@@ -99,7 +101,7 @@ class ComputeThread extends Thread{
                 minIndex = i;
             }
         }
-        owner.incrementThreadIndexDone();
+        owner.incrementThreadIndexDone(threadIndex);
     }
 
     public int getMinIndex() {
