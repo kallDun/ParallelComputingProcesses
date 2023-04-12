@@ -5,7 +5,7 @@ import java.util.concurrent.Semaphore;
 
 public class Main {
     public static void main(String[] args) {
-        Init(4, 20, 4, 6);
+        Init(4, 10, 4, 6);
     }
     private static void Init(int storageSize, int workTarget, int producers, int consumers) {
         Storage storage = new Storage(storageSize, workTarget);
@@ -27,7 +27,8 @@ class Storage{
     public Semaphore full;
     public List<String> buffer;
     public volatile int workTarget;
-    public volatile int workDone;
+    public volatile int workDoneProducer;
+    public volatile int workDoneConsumer;
 
     private int lastIndex = 0;
 
@@ -37,7 +38,8 @@ class Storage{
         this.empty = new Semaphore(0);
         this.full = new Semaphore(size);
         this.workTarget = workTarget;
-        this.workDone = 0;
+        this.workDoneProducer = 0;
+        this.workDoneConsumer = 0;
         buffer = new ArrayList<>();
     }
 
@@ -70,20 +72,20 @@ class Producer extends WorkingThread{
 
     @Override
     public void run() {
-        while (storage.workDone < storage.workTarget){
+        while (storage.workDoneProducer < storage.workTarget){
             try {
                 storage.full.acquire();
                 Thread.sleep(random.nextInt(0, 100));
                 storage.access.acquire();
 
-                if (storage.workDone >= storage.workTarget){
+                if (storage.workDoneProducer >= storage.workTarget){
                     storage.access.release();
                     return;
                 }
 
                 int itemIndex = storage.put();
                 System.out.println("Producer " + index + " added " + (itemIndex));
-                storage.workDone++;
+                storage.workDoneProducer++;
 
                 storage.access.release();
                 storage.empty.release();
@@ -101,20 +103,20 @@ class Consumer extends WorkingThread{
 
     @Override
     public void run() {
-        while (storage.workDone < storage.workTarget){
+        while (storage.workDoneConsumer < storage.workTarget){
             try {
                 storage.empty.acquire();
                 Thread.sleep(random.nextInt(0, 100));
                 storage.access.acquire();
 
-                if (storage.workDone >= storage.workTarget){
+                if (storage.workDoneConsumer >= storage.workTarget){
                     storage.access.release();
                     return;
                 }
 
                 String item = storage.buffer.remove(0);
                 System.out.println("Consumer " + index + " took " + (item));
-                storage.workDone++;
+                storage.workDoneConsumer++;
 
                 storage.access.release();
                 storage.full.release();

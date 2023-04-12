@@ -7,9 +7,9 @@ namespace sharp
 {
     public class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
-            Init(storageSize: 4, itemNumbersForWork: 20, producersCount: 4, consumersCount: 6);
+            Init(storageSize: 4, itemNumbersForWork: 10, producersCount: 4, consumersCount: 6);
             Console.ReadKey();
         }
 
@@ -37,19 +37,21 @@ namespace sharp
         public Semaphore Full { get; set; }
         public Semaphore Empty { get; set; }
         public List<string> List { get; } = new List<string>();
-        public int ItemNumbers { get; }
         
-        private int lastIndex = 0;
-        
+        public int WorkTarget { get; }
+        public int ProducerWorkDone { get; set; } = 0;
+        public int ConsumerWorkDone { get; set; } = 0;
+
         public Storage(int storageSize, int itemNumbersForWork)
         {
             Access = new Semaphore(1, 1);
             Full = new Semaphore(storageSize, storageSize);
             Empty = new Semaphore(0, storageSize);
             Size = storageSize;
-            ItemNumbers = itemNumbersForWork;
+            WorkTarget = itemNumbersForWork;
         }
         
+        private int lastIndex = 0;
         public int AddNewItemToList()
         {
             List.Add($"item {lastIndex++}");
@@ -59,8 +61,6 @@ namespace sharp
 
     public abstract class WorkingThread
     {
-        protected static volatile int workIndex = 0;
-
         protected static volatile Random random = new Random();
         protected volatile Storage storage;
         protected volatile int index;
@@ -79,27 +79,25 @@ namespace sharp
 
     public class Producer : WorkingThread
     {
-        public Producer(int index, Storage storage) : base(index, storage)
-        {
-        }
+        public Producer(int index, Storage storage) : base(index, storage) { }
 
         public override void DoWork()
         {
-            while (workIndex < storage.ItemNumbers)
+            while (storage.ProducerWorkDone < storage.WorkTarget)
             {
                 storage.Full.WaitOne();
                 Thread.Sleep(random.Next(0, 100));
                 storage.Access.WaitOne();
-                if (workIndex >= storage.ItemNumbers)
+                if (storage.ProducerWorkDone >= storage.WorkTarget)
                 {
                     storage.Access.Release();
                     return;
                 }
 
                 int itemIndex = storage.AddNewItemToList();
-                Console.WriteLine($"{workIndex + 1}. Producer {index} added item {itemIndex}" +
-                    $"      \t| storage: {storage.List.Count}/{storage.Size}");
-                workIndex++;
+                Console.WriteLine($"Producer {index} added item {itemIndex}" +
+                    $"\t| storage: {storage.List.Count}/{storage.Size}");
+                storage.ProducerWorkDone++;
 
                 storage.Access.Release();
                 storage.Empty.Release();
@@ -109,18 +107,16 @@ namespace sharp
 
     public class Consumer : WorkingThread
     {
-        public Consumer(int index, Storage storage) : base(index, storage)
-        {
-        }
+        public Consumer(int index, Storage storage) : base(index, storage) { }
 
         public override void DoWork()
         {
-            while (workIndex < storage.ItemNumbers)
+            while (storage.ConsumerWorkDone < storage.WorkTarget)
             {
                 storage.Empty.WaitOne();
                 Thread.Sleep(random.Next(0, 100));
                 storage.Access.WaitOne();
-                if (workIndex >= storage.ItemNumbers)
+                if (storage.ConsumerWorkDone >= storage.WorkTarget)
                 {
                     storage.Access.Release();
                     return;
@@ -128,9 +124,9 @@ namespace sharp
 
                 string item = storage.List.ElementAt(0);
                 storage.List.RemoveAt(0);
-                Console.WriteLine($"{workIndex + 1}. Consumer {index} took {item}" +
-                    $"       \t| storage: {storage.List.Count}/{storage.Size}");
-                workIndex++;
+                Console.WriteLine($"Consumer {index} took {item}" +
+                    $"\t| storage: {storage.List.Count}/{storage.Size}");
+                storage.ConsumerWorkDone++;
 
                 storage.Access.Release();
                 storage.Full.Release();
