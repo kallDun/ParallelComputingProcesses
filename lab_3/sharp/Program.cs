@@ -9,23 +9,23 @@ namespace sharp
     {
         static void Main(string[] args)
         {
-            Init(storageSize: 4, itemNumbers: 5, producersCount: 4, consumersCount: 3);
+            Init(storageSize: 4, itemNumbersForWork: 20, producersCount: 4, consumersCount: 6);
             Console.ReadKey();
         }
 
-        private static void Init(int storageSize, int itemNumbers, int producersCount, int consumersCount)
+        private static void Init(int storageSize, int itemNumbersForWork, int producersCount, int consumersCount)
         {
-            Storage storage = new Storage(storageSize, producersCount, consumersCount);
+            Storage storage = new Storage(storageSize, itemNumbersForWork);
             List<WorkingThread> producers = new List<WorkingThread>();
             List<WorkingThread> consumers = new List<WorkingThread>();
 
-            for (int i = 0; i < producersCount; i++)
-            {
-                producers.Add(new Producer(i, storage, itemNumbers));
-            }
             for (int i = 0; i < consumersCount; i++)
             {
-                consumers.Add(new Consumer(i, storage, itemNumbers));
+                consumers.Add(new Consumer(i, storage));
+            }
+            for (int i = 0; i < producersCount; i++)
+            {
+                producers.Add(new Producer(i, storage));
             }
         }
     }
@@ -37,27 +37,38 @@ namespace sharp
         public Semaphore Full { get; set; }
         public Semaphore Empty { get; set; }
         public List<string> List { get; } = new List<string>();
-        public Storage(int storageSize, int producersCount, int consumersCount)
+        public int ItemNumbers { get; }
+        
+        private int lastIndex = 0;
+        
+        public Storage(int storageSize, int itemNumbersForWork)
         {
             Access = new Semaphore(1, 1);
             Full = new Semaphore(storageSize, storageSize);
             Empty = new Semaphore(0, storageSize);
             Size = storageSize;
+            ItemNumbers = itemNumbersForWork;
+        }
+        
+        public int AddNewItemToList()
+        {
+            List.Add($"item {lastIndex++}");
+            return lastIndex - 1;
         }
     }
 
     public abstract class WorkingThread
     {
+        protected static volatile int workIndex = 0;
+
         protected static volatile Random random = new Random();
-        protected volatile int itemNumbers;
         protected volatile Storage storage;
         protected volatile int index;
         private Thread thread;
 
-        protected WorkingThread(int index, Storage storage, int itemNumbers)
+        protected WorkingThread(int index, Storage storage)
         {
             this.index = index;
-            this.itemNumbers = itemNumbers;
             this.storage = storage;
             thread = new Thread(DoWork);
             thread.Start();
@@ -68,29 +79,27 @@ namespace sharp
 
     public class Producer : WorkingThread
     {
-        private static volatile int currentIndex = 0;
-
-        public Producer(int index, Storage storage, int itemNumbers) : base(index, storage, itemNumbers)
+        public Producer(int index, Storage storage) : base(index, storage)
         {
         }
 
         public override void DoWork()
         {
-            while (currentIndex < itemNumbers)
+            while (workIndex < storage.ItemNumbers)
             {
                 storage.Full.WaitOne();
                 Thread.Sleep(random.Next(0, 100));
                 storage.Access.WaitOne();
-                if (currentIndex >= itemNumbers)
+                if (workIndex >= storage.ItemNumbers)
                 {
                     storage.Access.Release();
                     return;
                 }
 
-                storage.List.Add($"item {currentIndex}");
-                Console.WriteLine($"Producer {currentIndex} added item {currentIndex}" +
-                    $"\t| storage: {storage.List.Count}/{storage.Size} \t| work: {currentIndex + 1}/{itemNumbers} |");
-                currentIndex++;
+                int itemIndex = storage.AddNewItemToList();
+                Console.WriteLine($"{workIndex + 1}. Producer {index} added item {itemIndex}" +
+                    $"      \t| storage: {storage.List.Count}/{storage.Size}");
+                workIndex++;
 
                 storage.Access.Release();
                 storage.Empty.Release();
@@ -100,20 +109,18 @@ namespace sharp
 
     public class Consumer : WorkingThread
     {
-        private static volatile int currentIndex = 0;
-
-        public Consumer(int index, Storage storage, int itemNumbers) : base(index, storage, itemNumbers)
+        public Consumer(int index, Storage storage) : base(index, storage)
         {
         }
 
         public override void DoWork()
         {
-            while (currentIndex < itemNumbers)
+            while (workIndex < storage.ItemNumbers)
             {
                 storage.Empty.WaitOne();
                 Thread.Sleep(random.Next(0, 100));
                 storage.Access.WaitOne();
-                if (currentIndex >= itemNumbers)
+                if (workIndex >= storage.ItemNumbers)
                 {
                     storage.Access.Release();
                     return;
@@ -121,9 +128,9 @@ namespace sharp
 
                 string item = storage.List.ElementAt(0);
                 storage.List.RemoveAt(0);
-                Console.WriteLine($"Consumer {index} took {item}" +
-                    $"\t| storage: {storage.List.Count}/{storage.Size} \t| work: {currentIndex + 1}/{itemNumbers} |");
-                currentIndex++;
+                Console.WriteLine($"{workIndex + 1}. Consumer {index} took {item}" +
+                    $"       \t| storage: {storage.List.Count}/{storage.Size}");
+                workIndex++;
 
                 storage.Access.Release();
                 storage.Full.Release();
