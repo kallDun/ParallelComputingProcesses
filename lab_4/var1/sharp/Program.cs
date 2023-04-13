@@ -14,7 +14,7 @@ namespace sharp
             {
                 forks.Add(new Fork() { Id = i });
             }
-            Waiter waiter = new Waiter { Forks = forks };
+            Waiter waiter = new Waiter();
             for (int i = 0; i < 5; i++)
             {
                 philosophers.Add(new Philosopher(i, forks[i], forks[(i + 1) % 5], waiter));
@@ -47,17 +47,17 @@ namespace sharp
             for (int i = 0; i < 10; i++)
             {
                 Console.WriteLine("Philosopher {0} thinking time {1}", _id, i);
-                while (!_waiter.CanEat()) { }
-                _forkLeft.Access.Wait();
+                _waiter.Access.WaitOne();
+                _forkLeft.Access.WaitOne();
                 Console.WriteLine("Philosopher {0} took fork {1}", _id, _forkLeft.Id);
-                _forkRight.Access.Wait();
+                _forkRight.Access.WaitOne();
                 Console.WriteLine("Philosopher {0} took fork {1}", _id, _forkRight.Id);
                 Console.WriteLine("Philosopher {0} eating time {1}", _id, i);
                 _forkRight.Access.Release();
                 Console.WriteLine("Philosopher {0} put fork {1}", _id, _forkRight.Id);
                 _forkLeft.Access.Release();
                 Console.WriteLine("Philosopher {0} put fork {1}", _id, _forkLeft.Id);
-                _waiter.StopEat();
+                _waiter.Access.Release();
             }
         }
     }
@@ -66,33 +66,11 @@ namespace sharp
     {
         public int Id { get; set; }
 
-        public SemaphoreSlim Access { get; set; } = new SemaphoreSlim(1, 1);
+        public Semaphore Access { get; set; } = new Semaphore(1, 1);
     }
 
     public class Waiter
     {
-        private object locker = new object();
-        private int count = 0;
-        public List<Fork> Forks { get; set; }
-        
-        public bool CanEat()
-        {
-            lock (locker)
-            {
-                if (count < 4)
-                {
-                    count++;
-                    return true;
-                }
-                return false;
-            }
-        }
-        public void StopEat()
-        {
-            lock (locker)
-            {
-                count--;
-            }
-        }
+        public Semaphore Access { get; set; } = new Semaphore(4, 4);
     }
 }
