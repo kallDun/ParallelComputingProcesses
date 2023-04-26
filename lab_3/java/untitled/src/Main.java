@@ -30,6 +30,8 @@ class Storage{
     public volatile int workDoneProducer;
     public volatile int workDoneConsumer;
 
+    public volatile boolean saveRelease = false;
+
     private int lastIndex = 0;
 
     public Storage(int size, int workTarget){
@@ -51,7 +53,7 @@ class Storage{
 }
 
 abstract class WorkingThread extends Thread{
-    protected final Storage storage;
+    protected Storage storage;
     protected final int index;
 
     protected Random random = new Random();
@@ -72,13 +74,20 @@ class Producer extends WorkingThread{
 
     @Override
     public void run() {
-        while (storage.workDoneProducer < storage.workTarget){
+        while (true){
             try {
                 storage.full.acquire();
                 Thread.sleep(random.nextInt(0, 100));
                 storage.access.acquire();
 
                 if (storage.workDoneProducer >= storage.workTarget){
+                    storage.full.release();
+                    if (!storage.saveRelease &&
+                            storage.buffer.size() == 0 &&
+                            storage.workDoneConsumer >= storage.workTarget){
+                        storage.saveRelease = true;
+                        storage.empty.release();
+                    }
                     storage.access.release();
                     return;
                 }
@@ -103,13 +112,20 @@ class Consumer extends WorkingThread{
 
     @Override
     public void run() {
-        while (storage.workDoneConsumer < storage.workTarget){
+        while (true){
             try {
                 storage.empty.acquire();
                 Thread.sleep(random.nextInt(0, 100));
                 storage.access.acquire();
 
                 if (storage.workDoneConsumer >= storage.workTarget){
+                    storage.empty.release();
+                    if (!storage.saveRelease &&
+                            storage.buffer.size() == storage.size &&
+                            storage.workDoneProducer >= storage.workTarget){
+                        storage.saveRelease = true;
+                        storage.full.release();
+                    }
                     storage.access.release();
                     return;
                 }

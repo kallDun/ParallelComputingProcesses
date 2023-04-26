@@ -17,18 +17,24 @@ procedure Main is
       Empty_Storage  : Counting_Semaphore (0, Default_Ceiling);
       ProducersWorkDone : Integer := 0;
       ConsumersWorkDone : Integer := 0;
+      SaveRelease : Boolean := False;
 
       task type ProducerTask;
       task body ProducerTask is
       begin
 
-         while ProducersWorkDone < WorkTarget loop
+         while True loop
 
             Full_Storage.Seize;
-            delay 0.25;
+            --delay 0.25;
             Access_Storage.Seize;
 
             if ProducersWorkDone >= WorkTarget then
+               Full_Storage.Release;
+               if SaveRelease = False and Storage.Length = 0 and ConsumersWorkDone >= WorkTarget then
+                  SaveRelease := true;
+                  Empty_Storage.Release;
+               end if;
                Access_Storage.Release;
                exit;
             end if;
@@ -49,13 +55,18 @@ procedure Main is
       task body ConsumerTask is
       begin
 
-         while ConsumersWorkDone < WorkTarget loop
+         while True loop
 
             Empty_Storage.Seize;
-            delay 0.25;
+            --delay 0.25;
             Access_Storage.Seize;
 
             if ConsumersWorkDone >= WorkTarget then
+               Empty_Storage.Release;
+               if SaveRelease = False and Integer(Storage.Length) = StorageSize and ProducersWorkDone >= WorkTarget then
+                  SaveRelease := true;
+                  Full_Storage.Release;
+               end if;
                Access_Storage.Release;
                exit;
             end if;

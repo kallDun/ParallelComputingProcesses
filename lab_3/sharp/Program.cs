@@ -37,10 +37,14 @@ namespace sharp
         public Semaphore Full { get; set; }
         public Semaphore Empty { get; set; }
         public List<string> List { get; } = new List<string>();
-        
+
+        public volatile bool SaveRelease = false;
+
         public int WorkTarget { get; }
         public int ProducerWorkDone { get; set; } = 0;
         public int ConsumerWorkDone { get; set; } = 0;
+        
+        private int lastIndex = 0;
 
         public Storage(int storageSize, int itemNumbersForWork)
         {
@@ -51,7 +55,6 @@ namespace sharp
             WorkTarget = itemNumbersForWork;
         }
         
-        private int lastIndex = 0;
         public int AddNewItemToList()
         {
             List.Add($"item {lastIndex++}");
@@ -83,13 +86,21 @@ namespace sharp
 
         public override void DoWork()
         {
-            while (storage.ProducerWorkDone < storage.WorkTarget)
+            while (true)
             {
                 storage.Full.WaitOne();
                 Thread.Sleep(random.Next(0, 100));
                 storage.Access.WaitOne();
                 if (storage.ProducerWorkDone >= storage.WorkTarget)
                 {
+                    storage.Full.Release();
+                    if (!storage.SaveRelease
+                        && storage.List.Count == 0
+                        && storage.ConsumerWorkDone >= storage.WorkTarget)
+                    {
+                        storage.SaveRelease = true;
+                        storage.Empty.Release();
+                    }
                     storage.Access.Release();
                     return;
                 }
@@ -99,8 +110,8 @@ namespace sharp
                     $"\t| storage: {storage.List.Count}/{storage.Size}");
                 storage.ProducerWorkDone++;
 
-                storage.Access.Release();
                 storage.Empty.Release();
+                storage.Access.Release();
             }
         }
     }
@@ -111,13 +122,21 @@ namespace sharp
 
         public override void DoWork()
         {
-            while (storage.ConsumerWorkDone < storage.WorkTarget)
+            while (true)
             {
                 storage.Empty.WaitOne();
                 Thread.Sleep(random.Next(0, 100));
                 storage.Access.WaitOne();
                 if (storage.ConsumerWorkDone >= storage.WorkTarget)
                 {
+                    storage.Empty.Release();
+                    if (!storage.SaveRelease 
+                        && storage.List.Count == storage.Size
+                        && storage.ProducerWorkDone >= storage.WorkTarget)
+                    {
+                        storage.SaveRelease = true;
+                        storage.Full.Release();
+                    }
                     storage.Access.Release();
                     return;
                 }
@@ -128,8 +147,8 @@ namespace sharp
                     $"\t| storage: {storage.List.Count}/{storage.Size}");
                 storage.ConsumerWorkDone++;
 
-                storage.Access.Release();
                 storage.Full.Release();
+                storage.Access.Release();
             }
         }
     }
